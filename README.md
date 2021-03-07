@@ -128,7 +128,7 @@ cpp::delegate d = cpp::bind<&std::strlen>();
 assert( d.has_target<&std::strlen>() );
 ```
 
-------
+--------------------------------------------------------------------------------
 
 **Note:** `has_target` will only return `true` if a target was bound using the
 equivalent `cpp::bind` function. This means that a statically-specified function
@@ -165,15 +165,13 @@ example::delegate d = example::bind<&std::strlen>();
 Or it could also be defined using the compile-time definition with `-D`, such
 as:
 
-`g++ -std=c++11 -DRESULT_NAMESPACE=example test.cpp`
+`g++ -std=c++11 -DDELEGATE_NAMESPACE=example test.cpp`
 
 ```cpp
-#include <result.hpp>
+#include <delegate.hpp>
 
-auto test() -> example::result<int,int>;
+example::delegate d = example::bind<&std::strlen>();
 ```
-
-<kbd>[Try Online](https://godbolt.org/z/5xTsdj)</kbd>
 
 ## License
 
