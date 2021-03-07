@@ -865,12 +865,12 @@ private:
   /// The underlying storage, which may be either a (possibly const) pointer,
   /// or a char buffer of storage.
   //////////////////////////////////////////////////////////////////////////////
-  union {
+  union alignas(std::max_align_t) {
     empty_type m_empty; // Default type does nothing
     void* m_instance{};
     const void* m_const_instance;
     any_function m_function;
-    alignas(std::max_align_t) unsigned char m_storage[storage_size];
+    unsigned char m_storage[storage_size];
   };
   stub_function m_stub;
 };
