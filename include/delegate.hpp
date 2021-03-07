@@ -23,7 +23,6 @@
 #include <new>          // placement new, std::launder
 #include <cassert>      // assert
 #include <utility>      // std::forward
-#include <cstddef>      // std::max_align_t
 #include <cstring>      // std::memcmp
 #include <stdexcept>    // std::runtime_error
 
@@ -244,10 +243,14 @@ class delegate<R(Args...)>
     : sizeof(void*)
   );
 
+  static constexpr auto storage_align = (
+    alignof(void*)
+  );
+
   template <typename U>
   using fits_storage = std::bool_constant<(
     (sizeof(U) <= storage_size) &&
-    (alignof(U) <= alignof(std::max_align_t))
+    (alignof(U) <= storage_align)
   )>;
 
   //----------------------------------------------------------------------------
@@ -865,12 +868,12 @@ private:
   /// The underlying storage, which may be either a (possibly const) pointer,
   /// or a char buffer of storage.
   //////////////////////////////////////////////////////////////////////////////
-  union alignas(std::max_align_t) {
+  union {
     empty_type m_empty; // Default type does nothing
     void* m_instance{};
     const void* m_const_instance;
     any_function m_function;
-    unsigned char m_storage[storage_size];
+    alignas(storage_align) unsigned char m_storage[storage_size];
   };
   stub_function m_stub;
 };
