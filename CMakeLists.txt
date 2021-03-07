@@ -103,6 +103,7 @@ if (DELEGATE_COMPILE_UNIT_TESTS)
     HEADERS ${header_files}
   )
 
+  add_subdirectory("test")
 endif ()
 
 ##############################################################################
