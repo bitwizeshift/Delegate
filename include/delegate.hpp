@@ -72,11 +72,20 @@ namespace detail {
   template <typename R, typename...Args>
   struct effective_signature_impl<R(*)(Args...)> { using type = R(Args...); };
 
+  template <typename R, typename...Args>
+  struct effective_signature_impl<R(*)(Args...) noexcept> { using type = R(Args...); };
+
   template <typename R, typename C, typename...Args>
   struct effective_signature_impl<R(C::*)(Args...)> { using type = R(Args...); };
 
   template <typename R, typename C, typename...Args>
+  struct effective_signature_impl<R(C::*)(Args...) noexcept> { using type = R(Args...); };
+
+  template <typename R, typename C, typename...Args>
   struct effective_signature_impl<R(C::*)(Args...) const> { using type = R(Args...); };
+
+  template <typename R, typename C, typename...Args>
+  struct effective_signature_impl<R(C::*)(Args...) const noexcept> { using type = R(Args...); };
 
   template <typename Type>
   using effective_signature = typename effective_signature_impl<Type>::type;
