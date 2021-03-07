@@ -14,16 +14,15 @@
 #ifndef DELEGATE_DELEGATE_HPP
 #define DELEGATE_DELEGATE_HPP
 
-#if defined(_MSC_VER) && (_MSC_VER >= 1200)
+#if defined(_MSC_VER)
 # pragma once
-#endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
+#endif // defined(_MSC_VER)
 
 #include <type_traits>  // std::enable_if, std::is_constructible, etc
 #include <functional>   // std::invoke
 #include <new>          // placement new, std::launder
 #include <cassert>      // assert
 #include <utility>      // std::forward
-#include <cstddef>      // std::max_align_t
 #include <cstring>      // std::memcmp
 #include <stdexcept>    // std::runtime_error
 
@@ -46,6 +45,15 @@
 #  define DELEGATE_ASSERT(x) ((void)0)
 #else
 #  define DELEGATE_ASSERT(x) (x ? ((void)0) : [&]{ assert(x); }())
+#endif
+
+#if defined(_MSC_VER)
+# pragma warning(push)
+// MSVC complains about a [[noreturn]] function returning non-void, but this
+// is needed to satisfy the stub interface
+# pragma warning(disable:4646)
+// MSVC warns that `alignas` will cause padding. Like alignment does.
+# pragma warning(disable:4324)
 #endif
 
 namespace DELEGATE_NAMESPACE_INTERNAL {
@@ -146,7 +154,7 @@ constexpr auto bind(Callable* fn) noexcept -> callable_ref_bind_target<Callable>
 
 /// \brief Binds an opaque function pointer to create a function bind target
 ///
-/// \param the opaque function to pointer to bind
+/// \param fn the opaque function to pointer to bind
 /// \return the created target
 template <typename R, typename...Args>
 constexpr auto bind(R(*fn)(Args...)) noexcept -> opaque_function_bind_target<R(Args...)>;
@@ -169,7 +177,7 @@ template <typename Callable,
             std::is_empty_v<Callable> &&
             std::is_default_constructible_v<Callable>
           )>>
-constexpr auto bind(Callable) noexcept -> empty_callable_bind_target<Callable>;
+constexpr auto bind(Callable callable) noexcept -> empty_callable_bind_target<Callable>;
 
 /// \brief Binds a trivially-copyable callable object as a bind target
 ///
@@ -235,10 +243,14 @@ class delegate<R(Args...)>
     : sizeof(void*)
   );
 
+  static constexpr auto storage_align = (
+    alignof(void*)
+  );
+
   template <typename U>
   using fits_storage = std::bool_constant<(
     (sizeof(U) <= storage_size) &&
-    (alignof(U) <= alignof(std::max_align_t))
+    (alignof(U) <= storage_align)
   )>;
 
   //----------------------------------------------------------------------------
@@ -300,7 +312,6 @@ public:
   /// ```
   ///
   /// \param target the target to bind
-  /// \return the constructed delegate
   template <auto MemberFunction, typename T,
             typename = std::enable_if_t<(
               std::is_invocable_r_v<R,decltype(MemberFunction),T&,Args...>
@@ -611,6 +622,13 @@ public:
   /// This is equivalent to call `has_target()`
   constexpr explicit operator bool() const noexcept;
 
+#if defined(__clang__)
+# pragma clang diagnostic push
+// clang incorrectly flags '\return' when 'R = void' as being an error, but
+// there is no way to conditionally document a return type
+# pragma clang diagnostic ignored "-Wdocumentation"
+#endif
+
   /// \brief Invokes the underlying bound function
   ///
   /// \param args the arguments to forward to the function
@@ -618,6 +636,10 @@ public:
   template <typename...UArgs,
             typename = std::enable_if_t<std::is_invocable_v<R(*)(Args...),UArgs...>>>
   constexpr auto operator()(UArgs&&...args) const -> R;
+
+#if defined(__clang__)
+# pragma clang diagnostic pop
+#endif
 
   //----------------------------------------------------------------------------
 
@@ -757,16 +779,23 @@ private:
   // pointers
   using any_function = void(*)();
 
-  using stub_function = R(*)(const void*, Args...);
+  using stub_function = R(*)(const delegate*, Args...);
 
   //----------------------------------------------------------------------------
   // Stub Functions
   //----------------------------------------------------------------------------
 private:
 
+#if defined(__clang__)
+# pragma clang diagnostic push
+// clang incorrectly flags '\return' when 'R = void' as being an error, but
+// there is no way to conditionally document a return type
+# pragma clang diagnostic ignored "-Wdocumentation"
+#endif
+
   /// \brief Throws an exception by default
   [[noreturn]]
-  static auto null_stub(const void*, Args...) -> R;
+  static auto null_stub(const delegate*, Args...) -> R;
 
   /// \brief A stub function for statically-specific functions (or other
   ///        callables)
@@ -775,27 +804,27 @@ private:
   /// \param args the arguments to forward to the function
   /// \return the result of the Function call
   template <auto Function>
-  static auto function_stub(const void*, Args...args) -> R;
+  static auto function_stub(const delegate*, Args...args) -> R;
 
   /// \brief A stub function for statically-specific member functions (or other
   ///        callables)
   ///
   /// \tparam MemberFunction the statically-specific member function
   /// \tparam T the type of the first pointer
-  /// \param storage the base storage that contains the instance pointer
+  /// \param self an instance to the delegate that contains the instance pointer
   /// \param args the arguments to forward to the function
   /// \return the result of the MemberFunction call
   template <auto MemberFunction, typename T>
-  static auto member_function_stub(const void* storage, Args...args) -> R;
+  static auto member_function_stub(const delegate* self, Args...args) -> R;
 
   /// \brief A stub function for non-owning view of callable objects
   ///
   /// \tparam Fn the function to reference
-  /// \param storage the base storage that contains \p fn
+  /// \param self an instance to the delegate that contains \p fn
   /// \param args the arguments to forward to the function
   /// \return the result of invoking \p fn
   template <typename Fn>
-  static auto callable_view_stub(const void* storage, Args...args) -> R;
+  static auto callable_view_stub(const delegate* self, Args...args) -> R;
 
   /// \brief A stub function empty callable objects
   ///
@@ -803,26 +832,30 @@ private:
   /// \param args the arguments to forward to the function
   /// \return the result of invoking \p fn
   template <typename Fn>
-  static auto empty_callable_stub(const void*, Args...args) -> R;
+  static auto empty_callable_stub(const delegate*, Args...args) -> R;
 
   /// \brief A stub function for small callable objects
   ///
   /// \tparam Fn the small-storage function to invoke
-  /// \param storage the base storage that contains the function
+  /// \param self an instance to the delegate that contains the function
   /// \param args the arguments to forward to the function
   /// \return the result of invoking \p fn
   template <typename Fn>
-  static auto small_callable_stub(const void* storage, Args...args) -> R;
+  static auto small_callable_stub(const delegate* self, Args...args) -> R;
 
   /// \brief A stub function for function pointers
   ///
   /// \tparam R2 the return type
   /// \tparam Args2 the arguments
-  /// \param storage the storage object that contains the function pointers
+  /// \param self an instance to the delegate that contains the function pointers
   /// \param args the arguments to forward to the function
   /// \return the result of invoking the function
   template <typename R2, typename...Args2>
-  static auto function_ptr_stub(const void* storage, Args...args) -> R;
+  static auto function_ptr_stub(const delegate* self, Args...args) -> R;
+
+#if defined(__clang__)
+# pragma clang diagnostic pop
+#endif
 
   //----------------------------------------------------------------------------
   // Private Members
@@ -831,16 +864,16 @@ private:
 
   struct empty_type{};
 
-  /// \internal
+  //////////////////////////////////////////////////////////////////////////////
   /// The underlying storage, which may be either a (possibly const) pointer,
   /// or a char buffer of storage.
+  //////////////////////////////////////////////////////////////////////////////
   union {
-
     empty_type m_empty; // Default type does nothing
     void* m_instance{};
     const void* m_const_instance;
     any_function m_function;
-    alignas(std::max_align_t) unsigned char m_storage[storage_size];
+    alignas(storage_align) unsigned char m_storage[storage_size];
   };
   stub_function m_stub;
 };
@@ -1174,7 +1207,7 @@ inline constexpr DELEGATE_INLINE_VISIBILITY
 auto delegate<R(Args...)>::operator()(UArgs&&...args)
   const -> R
 {
-  return std::invoke(m_stub, m_storage, std::forward<UArgs>(args)...);
+  return std::invoke(m_stub, this, std::forward<UArgs>(args)...);
 }
 
 //------------------------------------------------------------------------------
@@ -1313,7 +1346,7 @@ auto delegate<R(Args...)>::has_target(R2(*fn)(Args2...))
 
 template <typename R, typename...Args>
 inline
-auto delegate<R(Args...)>::null_stub(const void*, Args...)
+auto delegate<R(Args...)>::null_stub(const delegate*, Args...)
   -> R
 {
   // Default stub throws unconditionally
@@ -1323,7 +1356,7 @@ auto delegate<R(Args...)>::null_stub(const void*, Args...)
 template <typename R, typename... Args>
 template <auto Function>
 inline
-auto delegate<R(Args...)>::function_stub(const void*, Args...args)
+auto delegate<R(Args...)>::function_stub(const delegate*, Args...args)
   -> R
 {
   if constexpr (std::is_void_v<R>) {
@@ -1336,14 +1369,13 @@ auto delegate<R(Args...)>::function_stub(const void*, Args...args)
 template <typename R, typename... Args>
 template <auto MemberFunction, typename T>
 inline
-auto delegate<R(Args...)>::member_function_stub(const void* storage,
+auto delegate<R(Args...)>::member_function_stub(const delegate* self,
                                                 Args...args)
   -> R
 {
   // This stub is used for both `const` and non-`const` `T` types. To extract
   // the pointer from the correct data member of the union, this uses an
   // immediately-invoking lambda (IIL) with `if constexpr`
-  const auto* const self = static_cast<const delegate*>(storage);
   auto* const c = [&self]{
     if constexpr (std::is_const_v<T>) {
       return static_cast<T*>(self->m_const_instance);
@@ -1362,14 +1394,13 @@ auto delegate<R(Args...)>::member_function_stub(const void* storage,
 template <typename R, typename... Args>
 template <typename Fn>
 inline
-auto delegate<R(Args...)>::callable_view_stub(const void* storage,
+auto delegate<R(Args...)>::callable_view_stub(const delegate* self,
                                               Args...args)
   -> R
 {
   // This stub is used for both `const` and non-`const` `Fn` types. To extract
   // the pointer from the correct data member of the union, this uses an
   // immediately-invoking lambda (IIL) with `if constexpr`
-  const auto* const self = static_cast<const delegate*>(storage);
   auto* const f = [&self]{
     if constexpr (std::is_const_v<Fn>) {
       return static_cast<Fn*>(self->m_const_instance);
@@ -1388,7 +1419,7 @@ auto delegate<R(Args...)>::callable_view_stub(const void* storage,
 template <typename R, typename... Args>
 template <typename Fn>
 inline
-auto delegate<R(Args...)>::empty_callable_stub(const void*,
+auto delegate<R(Args...)>::empty_callable_stub(const delegate*,
                                                Args...args)
   -> R
 {
@@ -1402,11 +1433,10 @@ auto delegate<R(Args...)>::empty_callable_stub(const void*,
 template <typename R, typename... Args>
 template <typename Fn>
 inline
-auto delegate<R(Args...)>::small_callable_stub(const void* storage,
+auto delegate<R(Args...)>::small_callable_stub(const delegate* self,
                                                Args...args)
   -> R
 {
-  const auto* const self = static_cast<const delegate*>(storage);
   const auto& f = *std::launder(reinterpret_cast<const Fn*>(self->m_storage));
 
   if constexpr (std::is_void_v<R>) {
@@ -1419,11 +1449,10 @@ auto delegate<R(Args...)>::small_callable_stub(const void* storage,
 template <typename R, typename... Args>
 template <typename R2, typename... Args2>
 inline
-auto delegate<R(Args...)>::function_ptr_stub(const void* storage,
+auto delegate<R(Args...)>::function_ptr_stub(const delegate* self,
                                              Args...args)
   -> R
 {
-  const auto* const self = static_cast<const delegate*>(storage);
   const auto f = reinterpret_cast<R2(*)(Args...)>(self->m_function);
 
   if constexpr (std::is_void_v<R>) {
@@ -1435,5 +1464,9 @@ auto delegate<R(Args...)>::function_ptr_stub(const void* storage,
 
 } // inline namespace bitwizeshift
 } // namespace DELEGATE_NAMESPACE_INTERNAL
+
+#if defined(_MSC_VER)
+# pragma warning(pop)
+#endif
 
 #endif /* DELEGATE_DELEGATE_HPP */

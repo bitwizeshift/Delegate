@@ -57,39 +57,11 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" AND
 
   # Disable unnecessary compatibility and 'newline-eof'. This is a modern C++
   # library -- so these serve no purpose
-  add_compile_options(-Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-newline-eof)
-
-  # Disable warnings on padding. This is a great warning, but not good when
-  # coupled with -Werror
-  add_compile_options(-Wno-padded)
-
-  # Several utilities require static objects that have exit-time destructors,
-  # including 'error_category' types from the standard.
-  add_compile_options(-Wno-exit-time-destructors)
-
-  # This is erroring on valid uses of the standard library, like std::lock_guard.
-  add_compile_options(-Wno-ctad-maybe-unsupported)
-
-  # This is a good warning *in general*, but not when using MSVC's standard
-  # library, which requires defining "_" prefixed macros just to have it operate
-  # like the C++ standard dictates.
-  add_compile_options(-Wno-reserved-id-macro)
-
-  # Don't warn on ignored attributes; this breaks builds using dllexport/dllimport on
-  # classes that may also define inline functions
-  add_compile_options(-Wno-ignored-attributes)
+  add_compile_options(-Wno-c++98-compat -Wno-c++98-compat-pedantic)
 
 elseif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR
         "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   add_compile_options(-Wall -Werror -Wextra -pedantic -pedantic-errors)
-
-  # Xcode 11.2 seems to enable -Wnewline-eof with '-Wextra'. Disable this,
-  # since it's a legacy requirement not needed in C++11 onward.
-  add_compile_options(-Wno-newline-eof)
-
-  # Don't warn on ignored attributes; this breaks builds using dllexport/dllimport on
-  # classes that may also define inline functions
-  add_compile_options(-Wno-ignored-attributes)
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   add_compile_options(/W4 /WX)
 endif ()

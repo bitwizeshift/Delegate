@@ -3,22 +3,23 @@ name: macOS
 on:
   push:
     paths:
-      - '.gitmodules'
+      - 'include/**.hpp'
+      - 'test/**.cpp'
       - '**.cmake'
-      - '**.cpp'
-      - '**.hpp'
+      - '.gitmodules'
       - 'CMakeLists.txt'
       - 'test/CMakeLists.txt'
       - '.github/workflows/build-macos.yml'
   pull_request:
     paths:
-      - '.gitmodules'
+      - 'include/**.hpp'
+      - 'test/**.cpp'
       - '**.cmake'
-      - '**.cpp'
-      - '**.hpp'
+      - '.gitmodules'
       - 'CMakeLists.txt'
       - 'test/CMakeLists.txt'
       - '.github/workflows/build-macos.yml'
+
 jobs:
   test:
     name: macoS Xcode ${{matrix.compiler.version}} ${{matrix.arch}} ${{matrix.build_type}}

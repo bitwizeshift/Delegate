@@ -4,9 +4,9 @@ on:
   push:
     branches: [master]
     paths:
+      - 'include/**.hpp'
+      - 'test/**.cpp'
       - '**.cmake'
-      - '**.cpp'
-      - '**.hpp'
       - '.gitmodules'
       - 'CMakeLists.txt'
       - 'test/CMakeLists.txt'
@@ -14,10 +14,10 @@ on:
   pull_request:
     branches: [master]
     paths:
-      - '.gitmodules'
+      - 'include/**.hpp'
+      - 'test/**.cpp'
       - '**.cmake'
-      - '**.cpp'
-      - '**.hpp'
+      - '.gitmodules'
       - 'CMakeLists.txt'
       - 'test/CMakeLists.txt'
       - '.github/workflows/analysis.yml'

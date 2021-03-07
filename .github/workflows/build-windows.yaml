@@ -3,19 +3,19 @@ name: Windows
 on:
   push:
     paths:
-      - '.gitmodules'
+      - 'include/**.hpp'
+      - 'test/**.cpp'
       - '**.cmake'
-      - '**.cpp'
-      - '**.hpp'
+      - '.gitmodules'
       - 'CMakeLists.txt'
       - 'test/CMakeLists.txt'
       - '.github/workflows/build-windows.yml'
   pull_request:
     paths:
-      - '.gitmodules'
+      - 'include/**.hpp'
+      - 'test/**.cpp'
       - '**.cmake'
-      - '**.cpp'
-      - '**.hpp'
+      - '.gitmodules'
       - 'CMakeLists.txt'
       - 'test/CMakeLists.txt'
       - '.github/workflows/build-windows.yml'
@@ -105,7 +105,7 @@ jobs:
 
       - name: Build
         working-directory: ${{env.build-directory}}
-        run: cmake --build . --config ${{matrix.build_type}}
+        run: cmake --build . --target Delegate.test --config ${{matrix.build_type}}
 
       - name: Test
         working-directory: ${{env.build-directory}}
