@@ -776,7 +776,7 @@ private:
   // pointers
   using any_function = void(*)();
 
-  using stub_function = R(*)(const void*, Args...);
+  using stub_function = R(*)(const delegate*, Args...);
 
   //----------------------------------------------------------------------------
   // Stub Functions
@@ -792,7 +792,7 @@ private:
 
   /// \brief Throws an exception by default
   [[noreturn]]
-  static auto null_stub(const void*, Args...) -> R;
+  static auto null_stub(const delegate*, Args...) -> R;
 
   /// \brief A stub function for statically-specific functions (or other
   ///        callables)
@@ -801,27 +801,27 @@ private:
   /// \param args the arguments to forward to the function
   /// \return the result of the Function call
   template <auto Function>
-  static auto function_stub(const void*, Args...args) -> R;
+  static auto function_stub(const delegate*, Args...args) -> R;
 
   /// \brief A stub function for statically-specific member functions (or other
   ///        callables)
   ///
   /// \tparam MemberFunction the statically-specific member function
   /// \tparam T the type of the first pointer
-  /// \param storage the base storage that contains the instance pointer
+  /// \param self an instance to the delegate that contains the instance pointer
   /// \param args the arguments to forward to the function
   /// \return the result of the MemberFunction call
   template <auto MemberFunction, typename T>
-  static auto member_function_stub(const void* storage, Args...args) -> R;
+  static auto member_function_stub(const delegate* self, Args...args) -> R;
 
   /// \brief A stub function for non-owning view of callable objects
   ///
   /// \tparam Fn the function to reference
-  /// \param storage the base storage that contains \p fn
+  /// \param self an instance to the delegate that contains \p fn
   /// \param args the arguments to forward to the function
   /// \return the result of invoking \p fn
   template <typename Fn>
-  static auto callable_view_stub(const void* storage, Args...args) -> R;
+  static auto callable_view_stub(const delegate* self, Args...args) -> R;
 
   /// \brief A stub function empty callable objects
   ///
@@ -829,26 +829,26 @@ private:
   /// \param args the arguments to forward to the function
   /// \return the result of invoking \p fn
   template <typename Fn>
-  static auto empty_callable_stub(const void*, Args...args) -> R;
+  static auto empty_callable_stub(const delegate*, Args...args) -> R;
 
   /// \brief A stub function for small callable objects
   ///
   /// \tparam Fn the small-storage function to invoke
-  /// \param storage the base storage that contains the function
+  /// \param self an instance to the delegate that contains the function
   /// \param args the arguments to forward to the function
   /// \return the result of invoking \p fn
   template <typename Fn>
-  static auto small_callable_stub(const void* storage, Args...args) -> R;
+  static auto small_callable_stub(const delegate* self, Args...args) -> R;
 
   /// \brief A stub function for function pointers
   ///
   /// \tparam R2 the return type
   /// \tparam Args2 the arguments
-  /// \param storage the storage object that contains the function pointers
+  /// \param self an instance to the delegate that contains the function pointers
   /// \param args the arguments to forward to the function
   /// \return the result of invoking the function
   template <typename R2, typename...Args2>
-  static auto function_ptr_stub(const void* storage, Args...args) -> R;
+  static auto function_ptr_stub(const delegate* self, Args...args) -> R;
 
 #if defined(__clang__)
 # pragma clang diagnostic pop
@@ -1343,7 +1343,7 @@ auto delegate<R(Args...)>::has_target(R2(*fn)(Args2...))
 
 template <typename R, typename...Args>
 inline
-auto delegate<R(Args...)>::null_stub(const void*, Args...)
+auto delegate<R(Args...)>::null_stub(const delegate*, Args...)
   -> R
 {
   // Default stub throws unconditionally
@@ -1353,7 +1353,7 @@ auto delegate<R(Args...)>::null_stub(const void*, Args...)
 template <typename R, typename... Args>
 template <auto Function>
 inline
-auto delegate<R(Args...)>::function_stub(const void*, Args...args)
+auto delegate<R(Args...)>::function_stub(const delegate*, Args...args)
   -> R
 {
   if constexpr (std::is_void_v<R>) {
@@ -1366,14 +1366,13 @@ auto delegate<R(Args...)>::function_stub(const void*, Args...args)
 template <typename R, typename... Args>
 template <auto MemberFunction, typename T>
 inline
-auto delegate<R(Args...)>::member_function_stub(const void* storage,
+auto delegate<R(Args...)>::member_function_stub(const delegate* self,
                                                 Args...args)
   -> R
 {
   // This stub is used for both `const` and non-`const` `T` types. To extract
   // the pointer from the correct data member of the union, this uses an
   // immediately-invoking lambda (IIL) with `if constexpr`
-  const auto* const self = static_cast<const delegate*>(storage);
   auto* const c = [&self]{
     if constexpr (std::is_const_v<T>) {
       return static_cast<T*>(self->m_const_instance);
@@ -1392,14 +1391,13 @@ auto delegate<R(Args...)>::member_function_stub(const void* storage,
 template <typename R, typename... Args>
 template <typename Fn>
 inline
-auto delegate<R(Args...)>::callable_view_stub(const void* storage,
+auto delegate<R(Args...)>::callable_view_stub(const delegate* self,
                                               Args...args)
   -> R
 {
   // This stub is used for both `const` and non-`const` `Fn` types. To extract
   // the pointer from the correct data member of the union, this uses an
   // immediately-invoking lambda (IIL) with `if constexpr`
-  const auto* const self = static_cast<const delegate*>(storage);
   auto* const f = [&self]{
     if constexpr (std::is_const_v<Fn>) {
       return static_cast<Fn*>(self->m_const_instance);
@@ -1418,7 +1416,7 @@ auto delegate<R(Args...)>::callable_view_stub(const void* storage,
 template <typename R, typename... Args>
 template <typename Fn>
 inline
-auto delegate<R(Args...)>::empty_callable_stub(const void*,
+auto delegate<R(Args...)>::empty_callable_stub(const delegate*,
                                                Args...args)
   -> R
 {
@@ -1432,11 +1430,10 @@ auto delegate<R(Args...)>::empty_callable_stub(const void*,
 template <typename R, typename... Args>
 template <typename Fn>
 inline
-auto delegate<R(Args...)>::small_callable_stub(const void* storage,
+auto delegate<R(Args...)>::small_callable_stub(const delegate* self,
                                                Args...args)
   -> R
 {
-  const auto* const self = static_cast<const delegate*>(storage);
   const auto& f = *std::launder(reinterpret_cast<const Fn*>(self->m_storage));
 
   if constexpr (std::is_void_v<R>) {
@@ -1449,11 +1446,10 @@ auto delegate<R(Args...)>::small_callable_stub(const void* storage,
 template <typename R, typename... Args>
 template <typename R2, typename... Args2>
 inline
-auto delegate<R(Args...)>::function_ptr_stub(const void* storage,
+auto delegate<R(Args...)>::function_ptr_stub(const delegate* self,
                                              Args...args)
   -> R
 {
-  const auto* const self = static_cast<const delegate*>(storage);
   const auto f = reinterpret_cast<R2(*)(Args...)>(self->m_function);
 
   if constexpr (std::is_void_v<R>) {
