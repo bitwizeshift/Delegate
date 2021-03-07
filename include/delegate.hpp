@@ -155,7 +155,7 @@ constexpr auto bind(Callable* fn) noexcept -> callable_ref_bind_target<Callable>
 
 /// \brief Binds an opaque function pointer to create a function bind target
 ///
-/// \param the opaque function to pointer to bind
+/// \param fn the opaque function to pointer to bind
 /// \return the created target
 template <typename R, typename...Args>
 constexpr auto bind(R(*fn)(Args...)) noexcept -> opaque_function_bind_target<R(Args...)>;
@@ -178,7 +178,7 @@ template <typename Callable,
             std::is_empty_v<Callable> &&
             std::is_default_constructible_v<Callable>
           )>>
-constexpr auto bind(Callable) noexcept -> empty_callable_bind_target<Callable>;
+constexpr auto bind(Callable callable) noexcept -> empty_callable_bind_target<Callable>;
 
 /// \brief Binds a trivially-copyable callable object as a bind target
 ///
@@ -309,7 +309,6 @@ public:
   /// ```
   ///
   /// \param target the target to bind
-  /// \return the constructed delegate
   template <auto MemberFunction, typename T,
             typename = std::enable_if_t<(
               std::is_invocable_r_v<R,decltype(MemberFunction),T&,Args...>
@@ -620,6 +619,13 @@ public:
   /// This is equivalent to call `has_target()`
   constexpr explicit operator bool() const noexcept;
 
+#if defined(__clang__)
+# pragma clang diagnostic push
+// clang incorrectly flags '\return' when 'R = void' as being an error, but
+// there is no way to conditionally document a return type
+# pragma clang diagnostic ignored "-Wdocumentation"
+#endif
+
   /// \brief Invokes the underlying bound function
   ///
   /// \param args the arguments to forward to the function
@@ -627,6 +633,10 @@ public:
   template <typename...UArgs,
             typename = std::enable_if_t<std::is_invocable_v<R(*)(Args...),UArgs...>>>
   constexpr auto operator()(UArgs&&...args) const -> R;
+
+#if defined(__clang__)
+# pragma clang diagnostic pop
+#endif
 
   //----------------------------------------------------------------------------
 
@@ -773,6 +783,13 @@ private:
   //----------------------------------------------------------------------------
 private:
 
+#if defined(__clang__)
+# pragma clang diagnostic push
+// clang incorrectly flags '\return' when 'R = void' as being an error, but
+// there is no way to conditionally document a return type
+# pragma clang diagnostic ignored "-Wdocumentation"
+#endif
+
   /// \brief Throws an exception by default
   [[noreturn]]
   static auto null_stub(const void*, Args...) -> R;
@@ -833,6 +850,10 @@ private:
   template <typename R2, typename...Args2>
   static auto function_ptr_stub(const void* storage, Args...args) -> R;
 
+#if defined(__clang__)
+# pragma clang diagnostic pop
+#endif
+
   //----------------------------------------------------------------------------
   // Private Members
   //----------------------------------------------------------------------------
@@ -840,11 +861,11 @@ private:
 
   struct empty_type{};
 
-  /// \internal
+  //////////////////////////////////////////////////////////////////////////////
   /// The underlying storage, which may be either a (possibly const) pointer,
   /// or a char buffer of storage.
+  //////////////////////////////////////////////////////////////////////////////
   union {
-
     empty_type m_empty; // Default type does nothing
     void* m_instance{};
     const void* m_const_instance;
