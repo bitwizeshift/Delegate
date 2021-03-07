@@ -1183,7 +1183,7 @@ inline constexpr DELEGATE_INLINE_VISIBILITY
 auto delegate<R(Args...)>::operator()(UArgs&&...args)
   const -> R
 {
-  return std::invoke(m_stub, m_storage, std::forward<UArgs>(args)...);
+  return std::invoke(m_stub, this, std::forward<UArgs>(args)...);
 }
 
 //------------------------------------------------------------------------------
