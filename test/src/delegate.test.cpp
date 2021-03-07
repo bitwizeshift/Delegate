@@ -3,6 +3,13 @@
 #include <memory>
 #include <catch2/catch.hpp>
 
+#if defined(_MSC_VER)
+# pragma warning(push)
+// MSVC warns on implicit casts for the covariant functions. Since this is a
+// test, this diagnostic is useless
+# pragma warning(disable:4267)
+#endif
+
 namespace DELEGATE_NAMESPACE_INTERNAL {
 inline namespace bitwizeshift {
 namespace test {
@@ -611,3 +618,7 @@ TEST_CASE("delegate::has_target<Fn>()") {
 } // namespace test
 } // inline namespace bitwizeshift
 } // namespace DELEGATE_NAMESPACE_INTERNAL
+
+#if defined(_MSC_VER)
+# pragma warning(pop)
+#endif

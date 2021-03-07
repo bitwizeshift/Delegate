@@ -14,9 +14,9 @@
 #ifndef DELEGATE_DELEGATE_HPP
 #define DELEGATE_DELEGATE_HPP
 
-#if defined(_MSC_VER) && (_MSC_VER >= 1200)
+#if defined(_MSC_VER)
 # pragma once
-#endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
+#endif // defined(_MSC_VER)
 
 #include <type_traits>  // std::enable_if, std::is_constructible, etc
 #include <functional>   // std::invoke
@@ -46,6 +46,15 @@
 #  define DELEGATE_ASSERT(x) ((void)0)
 #else
 #  define DELEGATE_ASSERT(x) (x ? ((void)0) : [&]{ assert(x); }())
+#endif
+
+#if defined(_MSC_VER)
+# pragma warning(push)
+// MSVC complains about a [[noreturn]] function returning non-void, but this
+// is needed to satisfy the stub interface
+# pragma warning(disable:4646)
+// MSVC warns that `alignas` will cause padding. Like alignment does.
+# pragma warning(disable:4324)
 #endif
 
 namespace DELEGATE_NAMESPACE_INTERNAL {
@@ -1435,5 +1444,9 @@ auto delegate<R(Args...)>::function_ptr_stub(const void* storage,
 
 } // inline namespace bitwizeshift
 } // namespace DELEGATE_NAMESPACE_INTERNAL
+
+#if defined(_MSC_VER)
+# pragma warning(pop)
+#endif
 
 #endif /* DELEGATE_DELEGATE_HPP */
