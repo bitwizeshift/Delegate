@@ -8,6 +8,10 @@ add_executable(${PROJECT_NAME}.test
 )
 add_executable(${PROJECT_NAME}::test ALIAS ${PROJECT_NAME}.test)
 
+if (MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(${PROJECT_NAME}.test PRIVATE "-Wa,-mbig-obj")
+endif ()
+
 target_link_libraries(${PROJECT_NAME}.test
   PRIVATE ${PROJECT_NAME}::${PROJECT_NAME}
   PRIVATE Catch2::Catch2
