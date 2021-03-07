@@ -1,5 +1,6 @@
 set(source_files
   src/main.cpp
+  src/delegate.test.cpp
 )
 
 add_executable(${PROJECT_NAME}.test
