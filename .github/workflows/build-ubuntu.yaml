@@ -3,22 +3,23 @@ name: Ubuntu
 on:
   push:
     paths:
-      - '.gitmodules'
+      - 'include/**.hpp'
+      - 'test/**.cpp'
       - '**.cmake'
-      - '**.cpp'
-      - '**.hpp'
+      - '.gitmodules'
       - 'CMakeLists.txt'
       - 'test/CMakeLists.txt'
       - '.github/workflows/build-ubuntu.yml'
   pull_request:
     paths:
-      - '.gitmodules'
+      - 'include/**.hpp'
+      - 'test/**.cpp'
       - '**.cmake'
-      - '**.cpp'
-      - '**.hpp'
+      - '.gitmodules'
       - 'CMakeLists.txt'
       - 'test/CMakeLists.txt'
       - '.github/workflows/build-ubuntu.yml'
+
 jobs:
   test:
     name: Ubuntu ${{matrix.compiler.cc}} ${{matrix.arch}} ${{matrix.build_type}}
@@ -100,6 +101,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v2
+        with:
+          submodules: true
 
       - name: Prepare Environment
         run: |

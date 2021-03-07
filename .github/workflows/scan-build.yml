@@ -4,20 +4,20 @@ on:
   push:
     branches: [master]
     paths:
-      - '.gitmodules'
+      - 'include/**.hpp'
+      - 'test/**.cpp'
       - '**.cmake'
-      - '**.cpp'
-      - '**.hpp'
+      - '.gitmodules'
       - 'CMakeLists.txt'
       - 'test/CMakeLists.txt'
       - '.github/workflows/scan-build.yml'
   pull_request:
     branches: [master]
     paths:
-      - '.gitmodules'
+      - 'include/**.hpp'
+      - 'test/**.cpp'
       - '**.cmake'
-      - '**.cpp'
-      - '**.hpp'
+      - '.gitmodules'
       - 'CMakeLists.txt'
       - 'test/CMakeLists.txt'
       - '.github/workflows/scan-build.yml'
