@@ -1,0 +1,112 @@
+name: macOS
+
+on:
+  push:
+    paths:
+      - '.gitmodules'
+      - '**.cmake'
+      - '**.cpp'
+      - '**.hpp'
+      - 'CMakeLists.txt'
+      - 'test/CMakeLists.txt'
+      - '.github/workflows/build-macos.yml'
+  pull_request:
+    paths:
+      - '.gitmodules'
+      - '**.cmake'
+      - '**.cpp'
+      - '**.hpp'
+      - 'CMakeLists.txt'
+      - 'test/CMakeLists.txt'
+      - '.github/workflows/build-macos.yml'
+jobs:
+  test:
+    name: macoS Xcode ${{matrix.compiler.version}} ${{matrix.arch}} ${{matrix.build_type}}
+    runs-on: macos-latest
+
+    env:
+      build-directory: build
+
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - { name: "xcode", version: "12.3" }
+        arch: [x86_64]
+        build_type: [Debug, Release]
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Prepare Environment
+        run: |
+          ls -ls /Applications/
+          sudo xcode-select -switch /Applications/Xcode_${{matrix.compiler.version}}.app
+          brew install ninja
+
+          cmake -E make_directory ${{env.build-directory}}
+
+      - name: Configure
+        working-directory: ${{env.build-directory}}
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake ..                                         \
+             -GNinja                                       \
+             -DCMAKE_BUILD_TYPE=${{matrix.build_type}}     \
+             -DDELEGATE_COMPILE_UNIT_TESTS=On
+
+      - name: Build
+        working-directory: ${{env.build-directory}}
+        run: cmake --build .
+
+      - name: Test
+        working-directory: ${{env.build-directory}}
+        run: ctest --output-on-failure
+
+  sanitize:
+    name: macOS Xcode ${{matrix.compiler.version}} '${{matrix.sanitizer}}' sanitizer
+    runs-on: macos-latest
+    needs: test
+
+    env:
+      build-directory: build
+
+    strategy:
+      matrix:
+        sanitizer: [address, undefined]
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Prepare Environment
+        run: |
+          brew install ninja
+          cmake -E make_directory ${{env.build-directory}}
+
+      - name: Configure
+        working-directory: ${{env.build-directory}}
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake ..                                         \
+             -GNinja                                       \
+             -DCMAKE_BUILD_TYPE=Debug                      \
+             -DDELEGATE_COMPILE_UNIT_TESTS=On              \
+             -DCMAKE_CXX_FLAGS="-fsanitize=${{matrix.sanitizer}}"
+
+      - name: Build
+        working-directory: ${{env.build-directory}}
+        run: cmake --build .
+
+      - name: Test (Sanitize)
+        working-directory: ${{env.build-directory}}
+        run: ctest --output-on-failure

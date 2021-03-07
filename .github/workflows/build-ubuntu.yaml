@@ -1,0 +1,132 @@
+name: Ubuntu
+
+on:
+  push:
+    paths:
+      - '.gitmodules'
+      - '**.cmake'
+      - '**.cpp'
+      - '**.hpp'
+      - 'CMakeLists.txt'
+      - 'test/CMakeLists.txt'
+      - '.github/workflows/build-ubuntu.yml'
+  pull_request:
+    paths:
+      - '.gitmodules'
+      - '**.cmake'
+      - '**.cpp'
+      - '**.hpp'
+      - 'CMakeLists.txt'
+      - 'test/CMakeLists.txt'
+      - '.github/workflows/build-ubuntu.yml'
+jobs:
+  test:
+    name: Ubuntu ${{matrix.compiler.cc}} ${{matrix.arch}} ${{matrix.build_type}}
+    runs-on: ubuntu-20.04
+
+    env:
+      build-directory: build
+
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - { cc: gcc-10, cxx: g++-10 }
+          - { cc: clang-10,  cxx: clang++-10 }
+        arch: [x86, x86_64]
+        build_type: [Debug, Release]
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Prepare Environment
+        run: |
+          if [[ "${{matrix.arch}}" == "x86" ]]; then
+            sudo dpkg --add-architecture i386
+          fi
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+          if [[ "${{matrix.compiler.cc}}" =~ "gcc" ]]; then
+            sudo apt-get install -y ${{matrix.compiler.cxx}} ${{matrix.compiler.cxx}}-multilib
+          else
+            sudo apt-get install -y ${{matrix.compiler.cc}} g++-multilib
+          fi
+          cmake -E make_directory ${{env.build-directory}}
+
+      - name: Prepare Architecture
+        run: |
+          if [[ "${{matrix.arch}}" = "x86" ]]; then
+            echo "CXXFLAGS=${CXXFLAGS} -m32" >> ${GITHUB_ENV}
+          fi
+
+      - name: Configure
+        working-directory: ${{env.build-directory}}
+        env:
+          CC: ${{matrix.compiler.cc}}
+          CXX: ${{matrix.compiler.cxx}}
+        run: |
+          cmake ..                                         \
+             -GNinja                                       \
+             -DCMAKE_BUILD_TYPE=${{matrix.build_type}}     \
+             -DDELEGATE_COMPILE_UNIT_TESTS=On
+
+      - name: Build
+        working-directory: ${{env.build-directory}}
+        run: cmake --build .
+
+      - name: Test
+        working-directory: ${{env.build-directory}}
+        run: ctest --output-on-failure
+
+  sanitize:
+    name: ${{matrix.compiler.cc}} '${{matrix.sanitizer}}' sanitizer
+    runs-on: ubuntu-20.04
+    needs: test
+
+    env:
+      build-directory: build
+
+    strategy:
+      matrix:
+        compiler:
+          - { cc: gcc, cxx: g++ }
+          - { cc: clang, cxx: clang++ }
+        sanitizer: [address, undefined]
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v2
+
+      - name: Prepare Environment
+        run: |
+          sudo apt-get install -y ninja-build
+          if [[ "${{matrix.compiler.cc}}" =~ "gcc" ]]; then
+            sudo apt-get install -y ${{matrix.compiler.cxx}} ${{matrix.compiler.cxx}}-multilib
+          else
+            sudo apt-get install -y ${{matrix.compiler.cc}} g++-multilib
+          fi
+          cmake -E make_directory ${{env.build-directory}}
+
+      - name: Configure
+        working-directory: ${{env.build-directory}}
+        env:
+          CC: ${{matrix.compiler.cc}}
+          CXX: ${{matrix.compiler.cxx}}
+        run: |
+          cmake ..                                         \
+             -GNinja                                       \
+             -DCMAKE_BUILD_TYPE=Debug                      \
+             -DCMAKE_CXX_FLAGS="-fsanitize=${{matrix.sanitizer}}" \
+             -DDELEGATE_COMPILE_UNIT_TESTS=On
+
+      - name: Build
+        working-directory: ${{env.build-directory}}
+        run: cmake --build .
+
+      - name: Test (Sanitize)
+        working-directory: ${{env.build-directory}}
+        run: ctest --output-on-failure

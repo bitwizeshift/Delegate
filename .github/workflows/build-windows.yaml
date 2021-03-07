@@ -1,0 +1,112 @@
+name: Windows
+
+on:
+  push:
+    paths:
+      - '.gitmodules'
+      - '**.cmake'
+      - '**.cpp'
+      - '**.hpp'
+      - 'CMakeLists.txt'
+      - 'test/CMakeLists.txt'
+      - '.github/workflows/build-windows.yml'
+  pull_request:
+    paths:
+      - '.gitmodules'
+      - '**.cmake'
+      - '**.cpp'
+      - '**.hpp'
+      - 'CMakeLists.txt'
+      - 'test/CMakeLists.txt'
+      - '.github/workflows/build-windows.yml'
+
+jobs:
+  test:
+    name: Windows ${{matrix.compiler.name}} ${{matrix.arch}} ${{matrix.build_type}}
+    runs-on: windows-latest
+    env:
+      build-directory: build
+
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - { name: "gcc", cc: gcc, cxx: g++ }
+          - { name: "clang", cc: clang, cxx: clang++ }
+          - { name: "clang-cl", cc: clang-cl, cxx: clang-cl }
+          - { name: "cl", cc: cl, cxx: cl }
+        arch: [x86, x86_64]
+        build_type: [Debug, Release]
+
+        # Visual Studios specifies strange terminology for x86/x86_64
+        include:
+          - arch: x86
+            vs_arch: Win32
+          - arch: x86_64
+            vs_arch: x64
+
+        # GCC fails to compile 32-bit correctly with Github's Windows runner
+        # configuration.
+        exclude:
+          - arch: x86
+            compiler: { name: "gcc", cc: gcc, cxx: g++ }
+
+    steps:
+
+      - name: Clone
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Prepare Environment
+        run: |
+          curl -fsSL -o LLVM10.exe https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.0/LLVM-10.0.0-win64.exe ; 7z x LLVM10.exe -y -o"C:/Program Files/LLVM"
+
+          cmake -E make_directory ${{env.build-directory}}
+
+      - name: Prepare Architecture
+        if: matrix.compiler.name == 'clang' && matrix.arch == 'x86'
+        shell: bash
+        run: echo "CXXFLAGS=${CXXFLAGS} -m32" >> ${GITHUB_ENV}
+
+      - name: Configure (gcc)
+        working-directory: ${{env.build-directory}}
+        if: matrix.compiler.name == 'gcc'
+        env:
+          CC: gcc
+          CXX: g++
+        run: |
+          cmake .. -G"MinGW Makefiles"                    `
+            -DCMAKE_BUILD_TYPE=${{matrix.build_type}}     `
+            -DDELEGATE_COMPILE_UNIT_TESTS=On
+
+      - name: Configure (clang)
+        working-directory: ${{env.build-directory}}
+        if: matrix.compiler.name == 'clang'
+        run: |
+          cmake .. -G"MinGW Makefiles"                    `
+            -DCMAKE_CXX_COMPILER="C:/Program Files/LLVM/bin/clang++.exe" `
+            -DCMAKE_BUILD_TYPE=${{matrix.build_type}}     `
+            -DDELEGATE_COMPILE_UNIT_TESTS=On
+
+      - name: Configure (clang-cl)
+        working-directory: ${{env.build-directory}}
+        if: matrix.compiler.name == 'clang-cl'
+        run: |
+          cmake .. -G"Visual Studio 16 2019" -A ${{matrix.vs_arch}} -T ClangCL `
+            -DDELEGATE_COMPILE_UNIT_TESTS=On
+
+      - name: Configure (MSVC)
+        working-directory: ${{env.build-directory}}
+        if: matrix.compiler.name == 'cl'
+        run: |
+          cmake .. -G"Visual Studio 16 2019" -A ${{matrix.vs_arch}} `
+            -DDELEGATE_COMPILE_UNIT_TESTS=On
+
+      - name: Build
+        working-directory: ${{env.build-directory}}
+        run: cmake --build . --config ${{matrix.build_type}}
+
+      - name: Test
+        working-directory: ${{env.build-directory}}
+        run: ctest --output-on-failure
