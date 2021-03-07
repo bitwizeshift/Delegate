@@ -33,20 +33,14 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v1
         with:
-          python-version: 3.7
+          submodules: true
 
       - name: Prepare Environment
         run: |
           sudo apt-get update
           sudo apt-get install -y clang clang-tools g++-multilib
-          python -m pip install --upgrade pip
-          pip install conan cpp-coveralls
           cmake -E make_directory ${{env.build-directory}}
-          cmake -E chdir ${{env.build-directory}} conan install ..
 
       - name: Configure
         working-directory: ${{env.build-directory}}
