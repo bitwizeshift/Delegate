@@ -661,7 +661,7 @@ public:
   /// \return reference to `(*this)`
   template <typename R2, typename...Args2,
             typename = std::enable_if_t<(
-              std::is_invocable_r_v<R2,R(*)(Args...),Args2...>
+              std::is_invocable_r_v<R,R2(*)(Args...),Args2...>
             )>>
   constexpr auto bind(R2(*fn)(Args2...)) noexcept -> delegate&;
 

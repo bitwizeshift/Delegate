@@ -479,13 +479,422 @@ TEST_CASE("delegate::delegate(opaque_function_bind_target<UR(UArgs...)>)") {
 }
 
 //------------------------------------------------------------------------------
-// Constructors
+
+TEST_CASE("delegate::bind<Function>()") {
+  SECTION("Function being bound has same signature") {
+    auto sut = delegate<int(int)>{};
+    sut.bind<&square>();
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(2) == 4);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target<&square>());
+    }
+  }
+
+  SECTION("Function being bound has similar signature") {
+    auto sut = delegate<long(long)>{};
+    sut.bind<&square>();
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(2) == 4);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target<&square>());
+    }
+  }
+
+  SECTION("Delegate returns void") {
+    auto sut = delegate<void(int&)>{};
+    sut.bind<&square_out>();
+
+    SECTION("Calls bound function") {
+      auto output = 2;
+      sut(output);
+      REQUIRE(output == 4);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target<&square_out>());
+    }
+  }
+}
+
 //------------------------------------------------------------------------------
 
+TEST_CASE("delegate::bind<MemberFunction>(T*)") {
+  SECTION("Function being bound has same signature") {
+    auto a = adder{42};
+    auto sut = delegate<int(int)>{};
+    sut.bind<&adder::set>(&a);
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(2) == 2);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target<&adder::set>(&a));
+    }
+  }
+
+  SECTION("Function being bound has similar signature") {
+    auto a = adder{42};
+    auto sut = delegate<long(long)>{};
+    sut.bind<&adder::set>(&a);
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(2) == 2);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target<&adder::set>(&a));
+    }
+  }
+
+  SECTION("Delegate returns void") {
+    auto a = adder{42};
+    auto sut = delegate<void(int)>{};
+    sut.bind<&adder::set>(&a);
+
+    SECTION("Calls bound function") {
+      const auto input = 2;
+      sut(input);
+      REQUIRE(a.x == input);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target<&adder::set>(&a));
+    }
+  }
+}
 
 //------------------------------------------------------------------------------
 
-// Not testing 'bind', since this just delegates to 'make'
+TEST_CASE("delegate::bind<MemberFunction>(const T*)") {
+  SECTION("Function being bound has same signature") {
+    const auto x = 42;
+    const auto a = adder{x};
+    auto sut = delegate<int(int)>{};
+    sut.bind<&adder::add>(&a);
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(2) == 44);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target<&adder::add>(&a));
+    }
+  }
+
+  SECTION("Function being bound has similar signature") {
+    const auto x = 42;
+    const auto a = adder{x};
+    auto sut = delegate<long(long)>{};
+    sut.bind<&adder::add>(&a);
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(2) == 44);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target<&adder::add>(&a));
+    }
+  }
+
+  SECTION("Delegate returns void") {
+    const auto x = 42;
+    const auto a = adder{x};
+    auto sut = delegate<void(int*, int)>{};
+    sut.bind<&adder::out_add>(&a);
+
+    SECTION("Calls bound function") {
+      auto out = 0;
+      sut(&out, 2);
+      REQUIRE(out == 44);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target<&adder::out_add>(&a));
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+
+TEST_CASE("delegate::bind(Callable*)") {
+  SECTION("Function being bound has same signature") {
+    const auto x = 42;
+    auto a = adder{x};
+    auto sut = delegate<int(int)>{};
+    sut.bind(&a);
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(2) == 44);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target(&a));
+    }
+  }
+
+  SECTION("Function being bound has similar signature") {
+    const auto x = 42;
+    auto a = adder{x};
+    auto sut = delegate<long(long)>{};
+    sut.bind(&a);
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(2) == 44);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target(&a));
+    }
+  }
+
+  SECTION("Delegate returns void") {
+    auto a = loader{};
+    auto sut = delegate<void(int*, int)>{};
+    sut.bind(&a);
+
+    SECTION("Calls bound function") {
+      auto out = 0;
+      const auto expected = 2;
+
+      sut(&out, expected);
+
+      REQUIRE(out == expected);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target(&a));
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+
+TEST_CASE("delegate::bind(const Callable*)") {
+  SECTION("Function being bound has same signature") {
+    const auto x = 42;
+    const auto a = adder{x};
+    auto sut = delegate<int(int)>{};
+    sut.bind(&a);
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(2) == 44);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target(&a));
+    }
+  }
+
+  SECTION("Function being bound has similar signature") {
+    const auto x = 42;
+    const auto a = adder{x};
+    auto sut = delegate<long(long)>{};
+    sut.bind(&a);
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(2) == 44);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target(&a));
+    }
+  }
+
+  SECTION("Delegate returns void") {
+    const auto a = loader{};
+    auto sut = delegate<void(int*,int)>{};
+    sut.bind(&a);
+
+    SECTION("Calls bound function") {
+      auto out = 0;
+      const auto expected = 2;
+
+      sut(&out, expected);
+
+      REQUIRE(out == expected);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target(&a));
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+
+TEST_CASE("delegate::bind<Fn>()") {
+  SECTION("Target is bound statically") {
+    SECTION("Function being bound has same signature") {
+      auto sut = delegate<std::size_t(int)>{};
+      sut.bind<std::hash<int>>();
+
+      SECTION("Calls bound function") {
+        REQUIRE(sut(42) == std::hash<int>{}(42));
+      }
+      SECTION("Has bound function") {
+        REQUIRE(sut.has_target<std::hash<int>>());
+      }
+    }
+
+    SECTION("Function being bound has similar signature") {
+      auto sut = delegate<long long(int)>{};
+      sut.bind<std::hash<int>>();
+
+      SECTION("Calls bound function") {
+        REQUIRE(sut(42) == static_cast<long long>(std::hash<int>{}(42)));
+      }
+      SECTION("Has bound function") {
+        REQUIRE(sut.has_target<std::hash<int>>());
+      }
+    }
+
+    SECTION("Delegate returns void") {
+      auto sut = delegate<void(int*, int)>{};
+      sut.bind<square_out_functor>();
+
+      SECTION("Calls bound function") {
+        auto out = 0;
+        sut(&out, 2);
+
+        REQUIRE(out == 4);
+      }
+      SECTION("Has bound function") {
+        REQUIRE(sut.has_target<square_out_functor>());
+      }
+    }
+  }
+
+  SECTION("Target is bound at runtime") {
+    SECTION("Function being bound has same signature") {
+      auto sut = delegate<std::size_t(int)>{};
+      sut.bind(std::hash<int>{});
+
+      SECTION("Calls bound function") {
+        REQUIRE(sut(42) == std::hash<int>{}(42));
+      }
+      SECTION("Has bound function") {
+        REQUIRE(sut.has_target(std::hash<int>{}));
+      }
+    }
+
+    SECTION("Function being bound has similar signature") {
+      auto sut = delegate<long long(int)>{};
+      sut.bind(std::hash<int>{});
+
+      SECTION("Calls bound function") {
+        REQUIRE(sut(42) == static_cast<long long>(std::hash<int>{}(42)));
+      }
+      SECTION("Has bound function") {
+        REQUIRE(sut.has_target(std::hash<int>{}));
+      }
+    }
+
+    SECTION("Delegate returns void") {
+      auto sut = delegate<void(int*, int)>{};
+      sut.bind(square_out_functor{});
+
+      SECTION("Calls bound function") {
+        auto out = 0;
+        sut(&out, 2);
+
+        REQUIRE(out == 4);
+      }
+      SECTION("Has bound function") {
+        REQUIRE(sut.has_target(square_out_functor{}));
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+
+TEST_CASE("delegate::bind(Fn&&)") {
+  SECTION("Function being bound has same signature") {
+    int x = 42;
+    const auto target = [x](int y){
+      return x + y;
+    };
+    auto sut = delegate<int(int)>{};
+    sut.bind(target);
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(10) == 52);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target(target));
+    }
+  }
+
+  SECTION("Function being bound has similar signature") {
+    int x = 42;
+    const auto target = [x](int y) {
+      return x + y;
+    };
+
+    auto sut = delegate<long(long)>{};
+    sut.bind(target);
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(10) == 52);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target(target));
+    }
+  }
+
+  SECTION("Delegate returns void") {
+    int x = 42;
+    const auto target = [x](int* out, int y) -> int{
+      return (*out = (x + y));
+    };
+
+    auto sut = delegate<void(int*, int)>{};
+    sut.bind(target);
+
+    SECTION("Calls bound function") {
+      auto out = 0;
+      sut(&out, 10);
+
+      REQUIRE(out == 52);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target(target));
+    }
+  }
+}
+
+TEST_CASE("delegate::bind(UR(*)(UArgs...))") {
+  SECTION("Function being bound has same signature") {
+    auto sut = delegate<int(int)>{};
+    sut.bind(&square);
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(2) == 4);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target(&square));
+    }
+  }
+
+  SECTION("Function being bound has similar signature") {
+    auto sut = delegate<long(long)>{};
+    sut.bind(&square);
+
+    SECTION("Calls bound function") {
+      REQUIRE(sut(2) == 4);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target(&square));
+    }
+  }
+
+  SECTION("Delegate returns void") {
+    auto sut = delegate<void(int&)>{};
+    sut.bind(&square_out);
+
+    SECTION("Calls bound function") {
+      auto output = 2;
+      sut(output);
+      REQUIRE(output == 4);
+    }
+    SECTION("Has bound function") {
+      REQUIRE(sut.has_target(&square_out));
+    }
+  }
+}
 
 //------------------------------------------------------------------------------
 // Modifiers
