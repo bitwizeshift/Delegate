@@ -66,26 +66,78 @@ namespace detail {
   struct is_equality_comparable<T,std::void_t<decltype(std::declval<const T&>()==std::declval<const T&>())>>
     : std::true_type{};
 
+  //----------------------------------------------------------------------------
+
   template <typename Type>
   struct effective_signature_impl;
 
-  template <typename R, typename...Args>
-  struct effective_signature_impl<R(*)(Args...)> { using type = R(Args...); };
+  //----------------------------------------------------------------------------
 
   template <typename R, typename...Args>
-  struct effective_signature_impl<R(*)(Args...) noexcept> { using type = R(Args...); };
+  struct effective_signature_impl<R(*)(Args...)> {
+    using type = R(Args...);
+  };
+
+  template <typename R, typename...Args>
+  struct effective_signature_impl<R(*)(Args...,...)> {
+    using type = R(Args...,...);
+  };
+
+  template <typename R, typename...Args>
+  struct effective_signature_impl<R(*)(Args...) noexcept> {
+    using type = R(Args...);
+  };
+
+  template <typename R, typename...Args>
+  struct effective_signature_impl<R(*)(Args...,...) noexcept> {
+    using type = R(Args...,...);
+  };
+
+  //----------------------------------------------------------------------------
 
   template <typename R, typename C, typename...Args>
-  struct effective_signature_impl<R(C::*)(Args...)> { using type = R(Args...); };
+  struct effective_signature_impl<R(C::*)(Args...)> {
+    using type = R(Args...);
+  };
 
   template <typename R, typename C, typename...Args>
-  struct effective_signature_impl<R(C::*)(Args...) noexcept> { using type = R(Args...); };
+  struct effective_signature_impl<R(C::*)(Args...,...)> {
+    using type = R(Args...,...);
+  };
 
   template <typename R, typename C, typename...Args>
-  struct effective_signature_impl<R(C::*)(Args...) const> { using type = R(Args...); };
+  struct effective_signature_impl<R(C::*)(Args...) noexcept> {
+    using type = R(Args...);
+  };
 
   template <typename R, typename C, typename...Args>
-  struct effective_signature_impl<R(C::*)(Args...) const noexcept> { using type = R(Args...); };
+  struct effective_signature_impl<R(C::*)(Args...,...) noexcept> {
+    using type = R(Args...,...);
+  };
+
+  //----------------------------------------------------------------------------
+
+  template <typename R, typename C, typename...Args>
+  struct effective_signature_impl<R(C::*)(Args...) const> {
+    using type = R(Args...);
+  };
+
+  template <typename R, typename C, typename...Args>
+  struct effective_signature_impl<R(C::*)(Args...,...) const> {
+    using type = R(Args...,...);
+  };
+
+  template <typename R, typename C, typename...Args>
+  struct effective_signature_impl<R(C::*)(Args...) const noexcept> {
+    using type = R(Args...);
+  };
+
+  template <typename R, typename C, typename...Args>
+  struct effective_signature_impl<R(C::*)(Args...,...) const noexcept> {
+    using type = R(Args...,...);
+  };
+
+  //----------------------------------------------------------------------------
 
   template <typename Type>
   using effective_signature = typename effective_signature_impl<Type>::type;
