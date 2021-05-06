@@ -647,7 +647,7 @@ public:
               std::is_trivially_copyable_v<std::decay_t<Fn>> &&
               std::is_invocable_r_v<R,const Fn&,Args...>
             )>>
-  constexpr auto bind(Fn&& fn) noexcept -> delegate&;
+  auto bind(Fn&& fn) noexcept -> delegate&;
 
   /// \brief Binds a non-member function pointer to this `delegate`
   ///
@@ -663,7 +663,7 @@ public:
             typename = std::enable_if_t<(
               std::is_invocable_r_v<R,R2(*)(Args...),Args2...>
             )>>
-  constexpr auto bind(R2(*fn)(Args2...)) noexcept -> delegate&;
+  auto bind(R2(*fn)(Args2...)) noexcept -> delegate&;
 
   //----------------------------------------------------------------------------
 
@@ -826,7 +826,7 @@ public:
               std::is_invocable_r_v<R,R2(*)(Args2...),Args...>
             )>>
   [[nodiscard]]
-  constexpr auto has_target(R2(*fn)(Args2...)) const noexcept -> bool;
+  auto has_target(R2(*fn)(Args2...)) const noexcept -> bool;
 
   //----------------------------------------------------------------------------
   // Private Member Types
@@ -865,7 +865,7 @@ private:
   /// \param args the arguments to forward to the function
   /// \return the result of the Function call
   template <auto Function>
-  static auto function_stub(const delegate*, Args...args) -> R;
+  static constexpr auto function_stub(const delegate*, Args...args) -> R;
 
   /// \brief A stub function for statically-specific member functions (or other
   ///        callables)
@@ -893,7 +893,7 @@ private:
   /// \param args the arguments to forward to the function
   /// \return the result of invoking \p fn
   template <typename Fn>
-  static auto empty_callable_stub(const delegate*, Args...args) -> R;
+  static constexpr auto empty_callable_stub(const delegate*, Args...args) -> R;
 
   /// \brief A stub function for small callable objects
   ///
@@ -1218,7 +1218,7 @@ auto delegate<R(Args...)>::bind(Fn)
 
 template <typename R, typename...Args>
 template <typename Fn, typename>
-inline constexpr DELEGATE_INLINE_VISIBILITY
+inline DELEGATE_INLINE_VISIBILITY
 auto delegate<R(Args...)>::bind(Fn&& fn)
   noexcept -> delegate&
 {
@@ -1231,7 +1231,7 @@ auto delegate<R(Args...)>::bind(Fn&& fn)
 
 template <typename R, typename...Args>
 template <typename R2, typename...Args2, typename>
-inline constexpr DELEGATE_INLINE_VISIBILITY
+inline DELEGATE_INLINE_VISIBILITY
 auto delegate<R(Args...)>::bind(R2(*fn)(Args2...))
   noexcept -> delegate&
 {
@@ -1383,7 +1383,7 @@ auto delegate<R(Args...)>::has_target(const Fn& fn)
 
 template <typename R, typename...Args>
 template <typename R2, typename...Args2, typename>
-inline constexpr DELEGATE_INLINE_VISIBILITY
+inline DELEGATE_INLINE_VISIBILITY
 auto delegate<R(Args...)>::has_target(R2(*fn)(Args2...))
   const noexcept -> bool
 {
@@ -1416,7 +1416,7 @@ auto delegate<R(Args...)>::null_stub(const delegate*, Args...)
 
 template <typename R, typename... Args>
 template <auto Function>
-inline
+inline constexpr
 auto delegate<R(Args...)>::function_stub(const delegate*, Args...args)
   -> R
 {
@@ -1479,7 +1479,7 @@ auto delegate<R(Args...)>::callable_view_stub(const delegate* self,
 
 template <typename R, typename... Args>
 template <typename Fn>
-inline
+inline constexpr
 auto delegate<R(Args...)>::empty_callable_stub(const delegate*,
                                                Args...args)
   -> R
